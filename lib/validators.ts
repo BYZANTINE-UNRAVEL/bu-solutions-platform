@@ -71,6 +71,34 @@ export const enquirySchema = z.object({
   productInterest: z.string().trim().max(80),
 });
 
+/** For passwords set from the desk. Sign-in still accepts the 8-character minimum the seed allows. */
+const newPassword = z
+  .string()
+  .min(12, "Use at least 12 characters.")
+  .max(200, "That password is too long.");
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Enter your current password."),
+    newPassword,
+    confirmPassword: z.string(),
+  })
+  .refine((value) => value.newPassword === value.confirmPassword, {
+    message: "The two new passwords do not match.",
+    path: ["confirmPassword"],
+  });
+
+export const newUserSchema = z.object({
+  name: z.string().trim().min(2, "Enter a name.").max(80),
+  email: z.string().trim().toLowerCase().email("Enter a valid email address.").max(120),
+  password: newPassword,
+});
+
+export const setPasswordSchema = z.object({
+  userId: z.string().min(1),
+  password: newPassword,
+});
+
 export const loginSchema = z.object({
   email: z.string().trim().email().max(120),
   password: z.string().min(8).max(200),

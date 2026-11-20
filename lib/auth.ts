@@ -86,6 +86,14 @@ export async function requireUser() {
   return user;
 }
 
+/** Sign out every other session of this user, keeping the one making the request. */
+export async function revokeOtherSessions(userId: string) {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  await prisma.session.deleteMany({
+    where: { userId, ...(token ? { NOT: { tokenHash: hashToken(token) } } : {}) },
+  });
+}
+
 /**
  * Use at the top of every desk page, not only in the desk layout. Layouts are skipped
  * on client-side navigations, so a page that relies on the layout alone can be

@@ -15,6 +15,8 @@ const links = [
   ["Products", "/admin/products"],
   ["Enquiries", "/admin/enquiries"],
   ["Record", "/admin/record"],
+  ["Users", "/admin/users"],
+  ["Account", "/admin/account"],
 ];
 
 export default async function DeskLayout({ children }: { children: React.ReactNode }) {
