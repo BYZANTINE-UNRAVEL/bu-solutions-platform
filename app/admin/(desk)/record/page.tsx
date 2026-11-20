@@ -1,9 +1,11 @@
 import { prisma } from "@/lib/db";
 import { formatWhen } from "@/lib/format";
+import { requireDeskUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function RecordPage() {
+  await requireDeskUser();
   const rows = await prisma.auditLog.findMany({
     orderBy: { createdAt: "desc" },
     take: 100,

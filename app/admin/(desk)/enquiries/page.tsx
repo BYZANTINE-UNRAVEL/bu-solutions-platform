@@ -1,10 +1,12 @@
 import { deleteEnquiry, purgeOldEnquiries } from "@/app/admin/actions";
 import { prisma } from "@/lib/db";
 import { formatWhen } from "@/lib/format";
+import { requireDeskUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function EnquiriesPage() {
+  await requireDeskUser();
   const [site, enquiries] = await Promise.all([
     prisma.siteSetting.findUnique({ where: { id: 1 } }),
     prisma.enquiry.findMany({ orderBy: { createdAt: "desc" } }),
@@ -15,7 +17,7 @@ export default async function EnquiriesPage() {
     <>
       <h1 className="mt-0 font-serif text-4xl font-normal">Enquiries</h1>
       <p className="max-w-xl text-muted">
-        An enquiry is personal data. It is kept for {months} months, then deleted from this desk. You can delete one at any time.
+        An enquiry is personal data. The retention period is {months} months. Nothing is removed automatically: use the button below to delete everything older than that. You can delete one at any time.
       </p>
       <form action={purgeOldEnquiries} className="mb-8">
         <button type="submit" className="secondary">

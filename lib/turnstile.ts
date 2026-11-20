@@ -1,10 +1,11 @@
 export function turnstileEnabled() {
-  return Boolean(process.env.TURNSTILE_SECRET_KEY && process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
+  return Boolean(process.env.TURNSTILE_SECRET_KEY?.trim() && process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim());
 }
 
 export async function verifyTurnstile(token: string, ip: string) {
-  const secret = process.env.TURNSTILE_SECRET_KEY?.trim();
-  if (!secret) return true;
+  // The widget only renders when both keys are set, so only demand a token then.
+  if (!turnstileEnabled()) return true;
+  const secret = process.env.TURNSTILE_SECRET_KEY!.trim();
   if (!token) return false;
   const body = new URLSearchParams({ secret, response: token });
   if (ip !== "unknown") body.set("remoteip", ip);

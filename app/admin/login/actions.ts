@@ -1,9 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { checkPassword, createSession, safeAdminPath } from "@/lib/auth";
+import { burnPasswordCheck, checkPassword, createSession, safeAdminPath } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { clientIpHash } from "@/lib/request";
+import { clientIpHash, keyedHash } from "@/lib/request";
 import { noteAttempt, tooManyAttempts } from "@/lib/rate-limit";
 import { fieldErrors, loginSchema } from "@/lib/validators";
 
@@ -16,15 +16,23 @@ export async function signIn(_prev: LoginState, formData: FormData): Promise<Log
   });
   if (!parsed.success) return { fieldErrors: fieldErrors(parsed.error) };
 
+  const email = parsed.data.email.toLowerCase();
   const ipHash = await clientIpHash();
-  if (await tooManyAttempts("login", ipHash)) {
+  const accountHash = keyedHash(email);
+  if ((await tooManyAttempts("login", ipHash)) || (await tooManyAttempts("loginAccount", accountHash))) {
     return { formError: "Too many attempts. Wait fifteen minutes and try again." };
   }
 
-  const user = await prisma.user.findUnique({ where: { email: parsed.data.email.toLowerCase() } });
-  const passwordOk = user ? await checkPassword(parsed.data.password, user.passwordHash) : false;
+  const user = await prisma.user.findUnique({ where: { email } });
+  let passwordOk = false;
+  if (user) {
+    passwordOk = await checkPassword(parsed.data.password, user.passwordHash);
+  } else {
+    await burnPasswordCheck(parsed.data.password);
+  }
   if (!user || !passwordOk) {
     await noteAttempt("login", ipHash);
+    await noteAttempt("loginAccount", accountHash);
     return { formError: "Email or password is wrong." };
   }
 

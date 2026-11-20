@@ -1,15 +1,51 @@
 "use client";
 
 import Script from "next/script";
-import { useActionState } from "react";
+import { startTransition, useActionState, useCallback, useEffect, useRef } from "react";
 import { sendEnquiry, type EnquiryState } from "@/app/(site)/contact/actions";
 import { turnstileSiteKey } from "@/lib/public-flags";
+
+type Turnstile = {
+  render(element: HTMLElement, options: { sitekey: string }): string;
+  reset(widgetId: string): void;
+  remove(widgetId: string): void;
+};
+
+declare global {
+  interface Window {
+    turnstile?: Turnstile;
+  }
+}
 
 const initial: EnquiryState = {};
 
 export function ContactForm({ products }: { products: { slug: string; name: string }[] }) {
   const [state, submit, pending] = useActionState(sendEnquiry, initial);
   const siteKey = turnstileSiteKey();
+  const widgetElement = useRef<HTMLDivElement>(null);
+  const widgetId = useRef<string | null>(null);
+
+  // Rendered explicitly: the implicit .cf-turnstile scan runs once per script load,
+  // so it misses the form when a visitor reaches /contact through an in-site link.
+  const renderWidget = useCallback(() => {
+    if (!siteKey || !widgetElement.current || !window.turnstile || widgetId.current) return;
+    widgetId.current = window.turnstile.render(widgetElement.current, { sitekey: siteKey });
+  }, [siteKey]);
+
+  useEffect(() => {
+    renderWidget();
+    return () => {
+      if (widgetId.current) window.turnstile?.remove(widgetId.current);
+      widgetId.current = null;
+    };
+  }, [renderWidget]);
+
+  // A token is good for one check. Fetch a fresh one after any failed submit.
+  useEffect(() => {
+    if (!state.ok && (state.formError || state.fieldErrors) && widgetId.current) {
+      window.turnstile?.reset(widgetId.current);
+    }
+  }, [state]);
 
   if (state.ok) {
     return (
@@ -25,7 +61,8 @@ export function ContactForm({ products }: { products: { slug: string; name: stri
       noValidate
       onSubmit={(event) => {
         event.preventDefault();
-        submit(new FormData(event.currentTarget));
+        const data = new FormData(event.currentTarget);
+        startTransition(() => submit(data));
       }}
     >
       <label className="field">
@@ -72,8 +109,8 @@ export function ContactForm({ products }: { products: { slug: string; name: stri
       </div>
       {siteKey ? (
         <>
-          <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer />
-          <div className="cf-turnstile" data-sitekey={siteKey} />
+          <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" onReady={renderWidget} />
+          <div ref={widgetElement} />
         </>
       ) : null}
       {state.formError ? <p className="m-0 text-sm text-oxide">{state.formError}</p> : null}

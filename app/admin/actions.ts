@@ -3,10 +3,18 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { recordChange } from "@/lib/audit";
-import { requireUser } from "@/lib/auth";
+import { checkPassword, hashPassword, requireUser, revokeOtherSessions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { refreshPublic } from "@/lib/revalidate";
-import { fieldErrors, pageSchema, productSchema, settingsSchema } from "@/lib/validators";
+import {
+  changePasswordSchema,
+  fieldErrors,
+  newUserSchema,
+  pageSchema,
+  productSchema,
+  setPasswordSchema,
+  settingsSchema,
+} from "@/lib/validators";
 
 export type FormState = { formError?: string; fieldErrors?: Record<string, string>; ok?: boolean };
 
@@ -211,4 +219,110 @@ export async function purgeOldEnquiries() {
     summary: `${user.email} deleted ${result.count} enquiries older than ${months} months`,
   });
   revalidatePath("/admin/enquiries");
+}
+
+export async function changePassword(_prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const parsed = changePasswordSchema.safeParse({
+    currentPassword: formData.get("currentPassword") ?? "",
+    newPassword: formData.get("newPassword") ?? "",
+    confirmPassword: formData.get("confirmPassword") ?? "",
+  });
+  if (!parsed.success) return { fieldErrors: fieldErrors(parsed.error) };
+  if (!(await checkPassword(parsed.data.currentPassword, user.passwordHash))) {
+    return { fieldErrors: { currentPassword: "That is not your current password." } };
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { passwordHash: await hashPassword(parsed.data.newPassword) },
+  });
+  await revokeOtherSessions(user.id);
+  await recordChange({
+    actorId: user.id,
+    action: "update",
+    entity: "user",
+    entityId: user.id,
+    summary: `${user.email} changed their password and signed out their other sessions`,
+  });
+  return { ok: true };
+}
+
+export async function createUser(_prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const parsed = newUserSchema.safeParse({
+    name: formData.get("name") ?? "",
+    email: formData.get("email") ?? "",
+    password: formData.get("password") ?? "",
+  });
+  if (!parsed.success) return { fieldErrors: fieldErrors(parsed.error) };
+  if (await prisma.user.findUnique({ where: { email: parsed.data.email } })) {
+    return { fieldErrors: { email: "Someone already signs in with that email." } };
+  }
+
+  const created = await prisma.user.create({
+    data: {
+      name: parsed.data.name,
+      email: parsed.data.email,
+      passwordHash: await hashPassword(parsed.data.password),
+    },
+  });
+  await recordChange({
+    actorId: user.id,
+    action: "create",
+    entity: "user",
+    entityId: created.id,
+    summary: `${user.email} gave desk access to ${created.email}`,
+  });
+  revalidatePath("/admin/users");
+  return { ok: true };
+}
+
+export async function setUserPassword(_prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const parsed = setPasswordSchema.safeParse({
+    userId: formData.get("userId") ?? "",
+    password: formData.get("password") ?? "",
+  });
+  if (!parsed.success) return { fieldErrors: fieldErrors(parsed.error) };
+  if (parsed.data.userId === user.id) {
+    return { formError: "Change your own password on the Account page." };
+  }
+  const target = await prisma.user.findUnique({ where: { id: parsed.data.userId } });
+  if (!target) return { formError: "That user is gone." };
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: target.id },
+      data: { passwordHash: await hashPassword(parsed.data.password) },
+    }),
+    prisma.session.deleteMany({ where: { userId: target.id } }),
+  ]);
+  await recordChange({
+    actorId: user.id,
+    action: "update",
+    entity: "user",
+    entityId: target.id,
+    summary: `${user.email} set a new password for ${target.email} and signed them out`,
+  });
+  return { ok: true };
+}
+
+export async function deleteUser(formData: FormData) {
+  const user = await requireUser();
+  const id = String(formData.get("id") ?? "");
+  if (id === user.id) redirect("/admin/users");
+  const target = await prisma.user.findUnique({ where: { id } });
+  if (!target) redirect("/admin/users");
+
+  // Sessions go with the user (onDelete: Cascade). Their past changes stay in the record.
+  await prisma.user.delete({ where: { id } });
+  await recordChange({
+    actorId: user.id,
+    action: "delete",
+    entity: "user",
+    entityId: id,
+    summary: `${user.email} removed desk access for ${target.email}`,
+  });
+  revalidatePath("/admin/users");
 }

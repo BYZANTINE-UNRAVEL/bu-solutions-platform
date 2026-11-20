@@ -1,15 +1,19 @@
 FROM node:22-bookworm-slim
 
-WORKDIR /app
-
 RUN apt-get update \
   && apt-get install -y --no-install-recommends openssl ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
-COPY package.json package-lock.json ./
+# Run as the image's unprivileged node user. It owns /app because the first start
+# builds the site into .next.
+WORKDIR /app
+RUN chown node:node /app
+USER node
+
+COPY --chown=node:node package.json package-lock.json ./
 RUN npm ci
 
-COPY . .
+COPY --chown=node:node . .
 RUN npx prisma generate
 
 ENV PORT=3847

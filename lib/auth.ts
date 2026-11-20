@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { compare, hash } from "bcryptjs";
 import { cookies, headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { SESSION_COOKIE } from "@/lib/session-cookie";
 
@@ -19,6 +20,14 @@ export async function checkPassword(password: string, passwordHash: string) {
   return compare(password, passwordHash);
 }
 
+let dummyHash: Promise<string> | undefined;
+
+/** Spend the same bcrypt time when the email is unknown, so timing does not reveal which accounts exist. */
+export async function burnPasswordCheck(password: string) {
+  dummyHash ??= hash(randomBytes(16).toString("hex"), 12);
+  await compare(password, await dummyHash);
+}
+
 async function cookieSecure() {
   if (process.env.COOKIE_SECURE === "true") return true;
   if (process.env.COOKIE_SECURE === "false") return false;
@@ -29,6 +38,7 @@ async function cookieSecure() {
 export async function createSession(userId: string) {
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
+  await prisma.session.deleteMany({ where: { expiresAt: { lt: new Date() } } });
   await prisma.session.create({
     data: { userId, tokenHash: hashToken(token), expiresAt },
   });
@@ -73,6 +83,25 @@ export async function requireUser() {
   if (!user) {
     throw new Error("Sign in required");
   }
+  return user;
+}
+
+/** Sign out every other session of this user, keeping the one making the request. */
+export async function revokeOtherSessions(userId: string) {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  await prisma.session.deleteMany({
+    where: { userId, ...(token ? { NOT: { tokenHash: hashToken(token) } } : {}) },
+  });
+}
+
+/**
+ * Use at the top of every desk page, not only in the desk layout. Layouts are skipped
+ * on client-side navigations, so a page that relies on the layout alone can be
+ * fetched without a valid session.
+ */
+export async function requireDeskUser() {
+  const user = await getSessionUser();
+  if (!user) redirect("/admin/login");
   return user;
 }
 

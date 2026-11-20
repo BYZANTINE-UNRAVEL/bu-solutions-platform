@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { startTransition, useActionState } from "react";
 import { saveSettings, type FormState } from "@/app/admin/actions";
 
 const initial: FormState = {};
@@ -25,7 +25,8 @@ export function SettingsForm({
       className="grid max-w-2xl gap-4"
       onSubmit={(event) => {
         event.preventDefault();
-        submit(new FormData(event.currentTarget));
+        const data = new FormData(event.currentTarget);
+        startTransition(() => submit(data));
       }}
     >
       {state.ok ? <p className="m-0 border border-line bg-panel px-3 py-2 text-sm">Saved.</p> : null}

@@ -6,7 +6,9 @@ HIMS and LIMS stay in their own applications. This repository is only the compan
 
 ## Stack
 
-Next.js (App Router), TypeScript, Tailwind CSS 4, PostgreSQL, and Prisma. The site runs as a Node server.
+Next.js 16 (App Router), TypeScript, Tailwind CSS 4, PostgreSQL, and Prisma 7. The site runs as a Node server.
+
+Prisma reads its settings, including `DATABASE_URL`, from `prisma.config.ts`, which loads `.env`. The client is generated into `lib/generated/prisma` (not committed) and connects through the `pg` driver adapter.
 
 ## Decisions locked before the schema
 
@@ -25,6 +27,7 @@ cp .env.example .env
 # Set DATABASE_URL, SESSION_SECRET (32+ characters), ADMIN_EMAIL, ADMIN_PASSWORD
 
 npm install
+npx prisma generate
 npx prisma migrate deploy
 npm run db:seed
 npm run dev
@@ -36,13 +39,15 @@ The site is at http://127.0.0.1:3847. The desk is at http://127.0.0.1:3847/admin
 
 ## Docker
 
-The image does not prerender during `docker build`. On first start it migrates, seeds, then builds the public pages from the database and serves them with `next start` on port 3847.
+The container runs as the unprivileged `node` user. The image does not prerender during `docker build`. On first start it migrates, seeds, then builds the public pages from the database and serves them with `next start` on port 3847.
 
 Set `POSTGRES_PASSWORD`, `SESSION_SECRET`, and the admin pair in the environment, then:
 
 ```bash
 docker compose up --build
 ```
+
+Compose publishes the site and the database on `127.0.0.1` only. Serve the public site through a TLS reverse proxy, and set `COOKIE_SECURE=true`.
 
 A later restart keeps the built pages. Saving in the desk republishes the pages that changed. Slug changes are stored as permanent redirects (HTTP 308).
 
@@ -51,10 +56,12 @@ A later restart keeps the built pages. Saving in the desk republishes the pages 
 - Company name, caption, introduction, and contact details
 - Home, products, and contact pages: heading, body, title, description, canonical path
 - Products, features, sort order, published state, online copy, on-premises copy
-- Enquiries, including deletion and a purge of anything older than the retention period (24 months unless you change it)
+- Enquiries, including deletion and a purge of anything older than the retention period (24 months unless you change it). The purge runs when someone presses the button; nothing is deleted automatically.
+- Desk users: add a user, set a new password for one (which signs them out), or remove one. Everyone in the desk has the same rights.
+- Your own password, on the Account page. Changing it signs out your other sessions.
 - A record of who changed what
 
-Login is email and password. Passwords are hashed. Sessions live in the database. The session cookie is `Secure` when `COOKIE_SECURE=true` or the proxy sends `X-Forwarded-Proto: https`. Login and the contact form are rate limited. The contact form has a honeypot; Turnstile is used when both Turnstile keys are set. Enquiry mail is sent when SMTP is configured. The enquiry is saved either way.
+Login is email and password. Passwords are hashed. Passwords set in the desk need at least 12 characters. Sessions live in the database. The session cookie is `Secure` when `COOKIE_SECURE=true` or the proxy sends `X-Forwarded-Proto: https`. Login and the contact form are rate limited by client address, and failed logins are also limited per account. The client address is read from the `X-Forwarded-For` entry appended by the reverse proxy in front of the app (`TRUST_PROXY_HOPS`, default 1). Run the site behind such a proxy: without one, a client can choose its own address. The contact form has a honeypot; Turnstile is used when both Turnstile keys are set. Enquiry mail is sent when SMTP is configured. The enquiry is saved either way.
 
 `/admin` is marked `noindex` and left out of `sitemap.xml` and `robots.txt`.
 
