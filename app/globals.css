@@ -1,0 +1,160 @@
+@import "tailwindcss";
+
+@theme {
+  --font-serif: var(--font-newsreader), "Iowan Old Style", Palatino, "Palatino Linotype", serif;
+  --font-sans: var(--font-source), "Source Sans 3", "Segoe UI", sans-serif;
+  --color-paper: #f3efe6;
+  --color-ink: #1c1915;
+  --color-muted: #5e574c;
+  --color-line: #d4cbbd;
+  --color-oxide: #7a2e2a;
+  --color-panel: #e7e0d2;
+  --color-field: #faf7f1;
+  --spacing: 0.3125rem;
+}
+
+html {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  line-height: 1.55;
+}
+
+a {
+  color: inherit;
+}
+
+::selection {
+  background: #e4d3c4;
+}
+
+.measure {
+  max-width: 40rem;
+}
+
+.prose-catalog p {
+  margin: 0 0 1rem;
+}
+
+.prose-catalog p:last-child {
+  margin-bottom: 0;
+}
+
+.prose-catalog ul,
+.prose-catalog ol {
+  margin: 0 0 1rem;
+  padding-left: 1.2rem;
+}
+
+.prose-catalog a {
+  color: var(--color-oxide);
+  text-underline-offset: 0.15em;
+}
+
+.catalog {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--color-line);
+}
+
+.catalog a.row {
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 11rem) minmax(0, 1fr);
+  gap: 1rem 1.5rem;
+  align-items: baseline;
+  padding: 1.25rem 0;
+  border-bottom: 1px solid var(--color-line);
+  text-decoration: none;
+}
+
+.catalog a.row:hover .name {
+  color: var(--color-oxide);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.field span,
+.field-label {
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+input:not([type="checkbox"]),
+textarea,
+select {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--color-line);
+  background: var(--color-field);
+  color: var(--color-ink);
+  font: inherit;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0;
+}
+
+textarea {
+  min-height: 8rem;
+  resize: vertical;
+}
+
+button,
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-ink);
+  background: var(--color-ink);
+  color: var(--color-paper);
+  font: inherit;
+  letter-spacing: 0.04em;
+  padding: 0.7rem 1.1rem;
+  border-radius: 0;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+button.secondary,
+.button.secondary {
+  background: transparent;
+  color: var(--color-ink);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.desk {
+  display: grid;
+  grid-template-columns: 14rem minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+@media (max-width: 800px) {
+  .catalog a.row {
+    grid-template-columns: 3rem minmax(0, 1fr);
+  }
+
+  .catalog .summary {
+    grid-column: 2;
+  }
+
+  .desk {
+    grid-template-columns: 1fr;
+  }
+}

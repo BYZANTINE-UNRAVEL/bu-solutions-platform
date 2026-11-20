@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime   @default(now())
+  sessions     Session[]
+  auditLogs    AuditLog[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action    String
+  entity    String
+  entityId  String
+  summary   String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+/// One row. Company name, caption, introduction, and contact details.
+model SiteSetting {
+  id                       Int      @id @default(1)
+  companyName              String
+  shortName                String
+  caption                  String
+  introduction             String   @db.Text
+  contactEmail             String   @default("")
+  contactPhone             String   @default("")
+  address                  String   @default("")
+  enquiryRetentionMonths   Int      @default(24)
+  updatedAt                DateTime @updatedAt
+}
+
+/// SEO and body copy for the fixed public pages: home, products, contact.
+model Page {
+  id            String   @id @default(cuid())
+  key           String   @unique
+  title         String
+  description   String
+  canonicalPath String
+  heading       String
+  body          String   @db.Text
+  updatedAt     DateTime @updatedAt
+}
+
+model Product {
+  id             String    @id @default(cuid())
+  slug           String    @unique
+  name           String
+  code           String
+  summary        String
+  introduction   String    @db.Text
+  audience       String
+  onlineEnabled  Boolean   @default(true)
+  offlineEnabled Boolean   @default(true)
+  onlineSummary  String
+  offlineSummary String
+  onlineDetail   String    @db.Text
+  offlineDetail  String    @db.Text
+  imageUrl       String    @default("")
+  sortOrder      Int
+  published      Boolean   @default(false)
+  seoTitle       String
+  seoDescription String
+  updatedAt      DateTime  @updatedAt
+  features       Feature[]
+}
+
+model Feature {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  title     String
+  body      String  @db.Text
+  sortOrder Int
+
+  @@index([productId])
+}
+
+model Redirect {
+  id         String   @id @default(cuid())
+  fromPath   String   @unique
+  toPath     String
+  statusCode Int      @default(308)
+  createdAt  DateTime @default(now())
+}
+
+model Enquiry {
+  id              String   @id @default(cuid())
+  name            String
+  email           String
+  organisation    String   @default("")
+  phone           String   @default("")
+  message         String   @db.Text
+  productInterest String   @default("")
+  createdAt       DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  ipHash    String
+  createdAt DateTime @default(now())
+
+  @@index([ipHash, createdAt])
+}
+
+model FormAttempt {
+  id        String   @id @default(cuid())
+  ipHash    String
+  createdAt DateTime @default(now())
+
+  @@index([ipHash, createdAt])
+}
