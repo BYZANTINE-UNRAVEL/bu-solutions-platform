@@ -1,10 +1,12 @@
 import { notFound } from "next/navigation";
 import { ProductView } from "@/components/product-view";
 import { getProductById, getPublishedProducts } from "@/lib/content";
+import { requireDeskUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function PreviewProduct({ params }: { params: Promise<{ id: string }> }) {
+  await requireDeskUser();
   const { id } = await params;
   const product = await getProductById(id);
   if (!product) notFound();

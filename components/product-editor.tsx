@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { startTransition, useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveProduct, type FormState } from "@/app/admin/actions";
 
@@ -44,7 +44,16 @@ export function ProductEditor({ product }: { product: ProductDraft }) {
   }
 
   return (
-    <form action={submit} className="grid max-w-3xl gap-4">
+    // Submitted through onSubmit, not the action prop: React resets a form after an
+    // action-prop submit, which would throw away unsaved edits when validation fails.
+    <form
+      className="grid max-w-3xl gap-4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        startTransition(() => submit(data));
+      }}
+    >
       <input type="hidden" name="id" value={product.id} />
       <input type="hidden" name="features" value={JSON.stringify(features)} />
       {state.ok ? <p className="m-0 border border-line bg-panel px-3 py-2 text-sm">Saved.</p> : null}

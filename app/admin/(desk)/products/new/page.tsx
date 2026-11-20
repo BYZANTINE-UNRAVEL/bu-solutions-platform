@@ -1,4 +1,5 @@
 import { ProductEditor } from "@/components/product-editor";
+import { requireDeskUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,8 @@ const blank = {
   features: [{ title: "", body: "" }],
 };
 
-export default function NewProductPage() {
+export default async function NewProductPage() {
+  await requireDeskUser();
   return (
     <>
       <h1 className="mt-0 font-serif text-4xl font-normal">New product</h1>

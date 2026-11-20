@@ -1,9 +1,11 @@
 import { SettingsForm } from "@/components/settings-form";
 import { getSite } from "@/lib/content";
+import { requireDeskUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
+  await requireDeskUser();
   const site = await getSite();
   return (
     <>

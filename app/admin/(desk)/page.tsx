@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { requireDeskUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function DeskHome() {
+  await requireDeskUser();
   const [products, published, enquiries, latest] = await Promise.all([
     prisma.product.count(),
     prisma.product.count({ where: { published: true } }),

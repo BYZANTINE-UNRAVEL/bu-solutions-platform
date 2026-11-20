@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { requireDeskUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,7 @@ const labels: Record<string, string> = {
 };
 
 export default async function PagesIndex() {
+  await requireDeskUser();
   const pages = await prisma.page.findMany({ orderBy: { key: "asc" } });
   return (
     <>

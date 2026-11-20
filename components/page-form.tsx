@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { startTransition, useActionState } from "react";
 import { savePage, type FormState } from "@/app/admin/actions";
 
 const initial: FormState = {};
@@ -16,7 +16,8 @@ export function PageForm({
       className="grid max-w-2xl gap-4"
       onSubmit={(event) => {
         event.preventDefault();
-        submit(new FormData(event.currentTarget));
+        const data = new FormData(event.currentTarget);
+        startTransition(() => submit(data));
       }}
     >
       <input type="hidden" name="key" value={page.key} />

@@ -3,10 +3,12 @@ import { notFound } from "next/navigation";
 import { deleteProduct } from "@/app/admin/actions";
 import { ProductEditor } from "@/components/product-editor";
 import { getProductById } from "@/lib/content";
+import { requireDeskUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireDeskUser();
   const { id } = await params;
   const product = await getProductById(id);
   if (!product) notFound();
@@ -18,7 +20,6 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
         <Link href={`/admin/preview/products/${product.id}`}>Preview</Link>
       </div>
       <ProductEditor
-        key={product.updatedAt.toISOString()}
         product={{
           id: product.id,
           slug: product.slug,

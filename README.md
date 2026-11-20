@@ -44,6 +44,8 @@ Set `POSTGRES_PASSWORD`, `SESSION_SECRET`, and the admin pair in the environment
 docker compose up --build
 ```
 
+Compose publishes the site and the database on `127.0.0.1` only. Serve the public site through a TLS reverse proxy, and set `COOKIE_SECURE=true`.
+
 A later restart keeps the built pages. Saving in the desk republishes the pages that changed. Slug changes are stored as permanent redirects (HTTP 308).
 
 ## What the desk edits
@@ -51,10 +53,10 @@ A later restart keeps the built pages. Saving in the desk republishes the pages 
 - Company name, caption, introduction, and contact details
 - Home, products, and contact pages: heading, body, title, description, canonical path
 - Products, features, sort order, published state, online copy, on-premises copy
-- Enquiries, including deletion and a purge of anything older than the retention period (24 months unless you change it)
+- Enquiries, including deletion and a purge of anything older than the retention period (24 months unless you change it). The purge runs when someone presses the button; nothing is deleted automatically.
 - A record of who changed what
 
-Login is email and password. Passwords are hashed. Sessions live in the database. The session cookie is `Secure` when `COOKIE_SECURE=true` or the proxy sends `X-Forwarded-Proto: https`. Login and the contact form are rate limited. The contact form has a honeypot; Turnstile is used when both Turnstile keys are set. Enquiry mail is sent when SMTP is configured. The enquiry is saved either way.
+Login is email and password. Passwords are hashed. Sessions live in the database. The session cookie is `Secure` when `COOKIE_SECURE=true` or the proxy sends `X-Forwarded-Proto: https`. Login and the contact form are rate limited by client address, and failed logins are also limited per account. The client address is read from the `X-Forwarded-For` entry appended by the reverse proxy in front of the app (`TRUST_PROXY_HOPS`, default 1). Run the site behind such a proxy: without one, a client can choose its own address. The contact form has a honeypot; Turnstile is used when both Turnstile keys are set. Enquiry mail is sent when SMTP is configured. The enquiry is saved either way.
 
 `/admin` is marked `noindex` and left out of `sitemap.xml` and `robots.txt`.
 
